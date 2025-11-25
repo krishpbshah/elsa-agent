@@ -75,11 +75,23 @@ ROBOT_STYLE_GUIDE_URIS = [
 ]
 
 # --- 2. INITIALIZE SERVICES ---
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+# --- 2. INITIALIZE SERVICES ---
+INIT_ERROR = None
+INIT_SUCCESS = False
 
-# Load the models
-image_model = GenerativeModel(model_name="gemini-2.5-flash-image")
-text_model = GenerativeModel(model_name="gemini-2.5-pro")
+try:
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
+    
+    # Load the models
+    image_model = GenerativeModel(model_name="gemini-2.5-flash-image")
+    text_model = GenerativeModel(model_name="gemini-2.5-pro")
+    
+    INIT_SUCCESS = True
+    print("Vertex AI services initialized successfully.")
+except Exception as e:
+    INIT_ERROR = str(e)
+    print(f"CRITICAL ERROR initializing Vertex AI: {e}")
+    # We don't raise here so the app can still start and serve /debug
 
 # --- 3. DEFINE IMAGE GENERATION FUNCTIONS (RETURNING BASE64) ---
 # (These functions are unchanged from your file)
@@ -376,6 +388,18 @@ async def get_chat_interface():
     html_path = os.path.join(os.path.dirname(__file__), "chat_interface.html")
     with open(html_path, "r") as f:
         return HTMLResponse(content=f.read())
+
+@app.get("/debug")
+async def debug_status():
+    """Return debug information about the environment and initialization."""
+    return {
+        "env_var_set": bool(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")),
+        "env_var_path": os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"),
+        "init_success": INIT_SUCCESS,
+        "init_error": INIT_ERROR,
+        "cwd": os.getcwd(),
+        "files": os.listdir('.')
+    }
 
 # This is your existing endpoint for regular messages
 @app.post("/api/chat")
